@@ -106,8 +106,13 @@ public class CacheSpiderEngine implements SpiderEngine{
     }
 
     private <T> T getFromCacheOrSupplier(String key, Class<T> resultClass, ResultGetter<T> resultGetter) {
-        String s = stringRedisTemplate.opsForValue().get(key);
-        T data = readAsObject(s, resultClass);
+        T data = null;
+        try {
+            String s = stringRedisTemplate.opsForValue().get(key);
+            data = readAsObject(s, resultClass);
+        } catch (Exception e) {
+            log.error("get from redis error", e);
+        }
         if (null != data) {
             log.info("cache hit: " + key);
             return data;
@@ -115,7 +120,12 @@ public class CacheSpiderEngine implements SpiderEngine{
         Lock lock = lockMap.computeIfAbsent(key, (k) -> new ReentrantLock());
         lock.lock();
         try {
-            data = readAsObject(s, resultClass);
+            try {
+                String s = stringRedisTemplate.opsForValue().get(key);
+                data = readAsObject(s, resultClass);
+            } catch (Exception e) {
+                log.error("get from redis error", e);
+            }
             if (null != data) {
                 log.info("cache hit on double check: " + key);
                 return data;
@@ -129,7 +139,11 @@ public class CacheSpiderEngine implements SpiderEngine{
             String dataStr = writeToString(data);
             if (StrUtil.isNotBlank(dataStr)) {
                 log.info("update cache: " + key);
-                stringRedisTemplate.opsForValue().set(key, dataStr, 12, TimeUnit.HOURS);
+                try {
+                    stringRedisTemplate.opsForValue().set(key, dataStr, 12, TimeUnit.HOURS);
+                } catch (Exception e) {
+                    log.error("cache save to redis error");
+                }
             }
         } finally {
             lock.unlock();

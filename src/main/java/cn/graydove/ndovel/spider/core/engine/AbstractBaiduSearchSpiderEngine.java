@@ -8,6 +8,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -29,7 +30,7 @@ public abstract class AbstractBaiduSearchSpiderEngine implements SeleniumSpiderE
         WebDriver webDriver = getWebDriver();
         webDriver.get(url);
         SearchResult searchResult = new SearchResult();
-        List<TextLink> result = webDriver.findElements(By.className("t")).stream()
+        List<TextLink> result = webDriver.findElements(By.tagName("h3")).stream()
                 .map(webElement -> {
                     TextLink textLink = new TextLink();
                     textLink.setName(webElement.getText());
@@ -41,9 +42,14 @@ public abstract class AbstractBaiduSearchSpiderEngine implements SeleniumSpiderE
                 }).collect(Collectors.toList());
         searchResult.setResult(result);
 
-        List<WebElement> elements = webDriver.findElements(By.cssSelector(".page-inner>a"));
-        String href = elements.get(elements.size() - 1).getAttribute("href");
-        searchResult.setNextPageUrl(href);
+        String nextPage = Optional.ofNullable(
+                webDriver.findElements(By.id("page")))
+                .flatMap(webElements -> webElements.stream()
+                       .map(webElement -> webElement.findElement(By.className("n"))
+                               .getAttribute("href"))
+                       .findAny()
+                ).orElse("");
+        searchResult.setNextPageUrl(nextPage);
         return searchResult;
     }
 
